@@ -543,3 +543,107 @@ describe('glob - with restricted directory', function() {
     }
   });
 });
+
+// Test input validation
+describe('glob - input validation', function() {
+  test('should throw on invalid pattern type', async () => {
+    await assert.rejects(async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of asyncGlob(123)) { /* empty */ }
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('globSync should throw on invalid pattern type', () => {
+    assert.throws(() => {
+      globSync(123);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('should throw on invalid options type', async () => {
+    await assert.rejects(async () => {
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of asyncGlob('*', 'not-an-object')) { /* empty */ }
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('should throw on invalid exclude array element', () => {
+    assert.throws(() => {
+      globSync('*', { cwd: fixtureDir, exclude: [123] });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('should throw on invalid exclude type', () => {
+    assert.throws(() => {
+      globSync('*', { cwd: fixtureDir, exclude: 'not-array-or-function' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+
+  test('should throw on invalid pattern array element', () => {
+    assert.throws(() => {
+      globSync([123, '*.txt'], { cwd: fixtureDir });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  });
+});
+
+// Test empty results
+describe('glob - empty results', function() {
+  test('pattern with no matches', () => {
+    const results = globSync('nonexistent/*', { cwd: fixtureDir });
+    assert.strictEqual(results.length, 0);
+  });
+
+  test('empty pattern array', () => {
+    const results = globSync([], { cwd: fixtureDir });
+    assert.strictEqual(results.length, 0);
+  });
+});
+
+// Test globstar at end
+describe('glob - globstar variations', function() {
+  test('pattern ending with /**', () => {
+    const results = globSync('a/**', { cwd: fixtureDir });
+    assert.ok(results.includes('a'));
+    assert.ok(results.some((r) => r.startsWith('a') && r !== 'a'));
+  });
+
+  test('pattern with multiple globstars', () => {
+    const results = globSync('**/b/**', { cwd: fixtureDir });
+    assert.ok(results.length > 0);
+  });
+
+  test('pattern .** with specific directory', () => {
+    const results = globSync('./**/b', { cwd: fixtureDir });
+    assert.ok(results.length > 0);
+  });
+});
+
+// Test with specific file patterns
+describe('glob - specific file patterns', function() {
+  test('pattern matching specific file', () => {
+    const results = globSync('a/b/c/d', { cwd: fixtureDir });
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0], join('a', 'b', 'c', 'd'));
+  });
+
+  test('pattern with ? wildcard', () => {
+    const results = globSync('a/?', { cwd: fixtureDir });
+    assert.ok(results.length > 0);
+  });
+
+  test('pattern with character class', () => {
+    const results = globSync('a/[bc]', { cwd: fixtureDir });
+    assert.ok(results.some((r) => r === join('a', 'b') || r === join('a', 'c')));
+  });
+});
